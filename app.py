@@ -85,42 +85,6 @@ def submit():
     return redirect_to
 
 
-@app.route("/api/get-user", methods=["GET", "POST"])
-def get_user():
-    """Retrieves user information based on provided username."""
-
-    if request.method != "POST":
-        return not_allowed_response, 405  # Return 405 Method Not Allowed
-
-    if not request.is_json:
-        return (
-            jsonify({"error": "Invalid request format. Please send JSON data."}),
-            400,
-        )  # 400 Bad Request
-
-    username = request.json.get("username")
-    if not username or not isinstance(username, str):
-        return jsonify({"error": "Invalid username. Please provide a string."}), 400
-
-    # Find user by username
-    user = users.find_one({"username": username})
-
-    if not user:
-        return jsonify({"error": "User not found."}), 404  # 404 Not Found
-
-    return (
-        jsonify(
-            {
-                "_id": str(user["_id"]),
-                "username": user["username"],
-                "template": user["template"],
-                "data": user["data"],
-            }
-        ),
-        200,
-    )
-
-
 @app.route("/api/add-user", methods=["GET", "POST"])
 def add_user():
     """
@@ -151,7 +115,7 @@ def add_user():
         return (
             jsonify(
                 {
-                    "error": f"Username must be between {min_username_length} and {max_username_length} characters long."
+                    "error": f"Username must be between {min_username_length} and {max_username_length} characters."
                 }
             ),
             400,
@@ -185,19 +149,22 @@ def add_user():
         "_id": ObjectId(),
         "username": username,
         "password": hashed_password,
+        "template": "",
+        "data": [],
     }
 
     users.insert_one(new_user)
 
-    return (
-        jsonify(
-            {
-                "_id": str(new_user["_id"]),
-                "username": username,
-            }
-        ),
-        201,
-    )
+    user = users.find_one({"username": username})
+
+    user = {
+        "_id": str(user["_id"]),
+        "username": user["username"],
+        "template": user["template"],
+        "data": user["data"],
+    }
+
+    return jsonify({"success": True, "user": user}), 200
 
 
 @app.route("/api/authenticate", methods=["GET", "POST"])
@@ -237,7 +204,14 @@ def authenticate():
     if hashed_password != user["password"]:  # Compare with stored hash
         return jsonify({"error": "Invalid login credentials."}), 401  # 401 Unauthorized
 
-    return jsonify({"success": True}), 200
+    user = {
+        "_id": str(user["_id"]),
+        "username": user["username"],
+        "template": user["template"],
+        "data": user["data"],
+    }
+
+    return jsonify({"success": True, "user": user}), 200
 
 
 @app.route("/api/set-template", methods=["GET", "POST"])
@@ -337,5 +311,6 @@ def clear_data():
     return jsonify({"success": True}), 200
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
+# For development mode only
+# if __name__ == "__main__":
+#     app.run(debug=True)
